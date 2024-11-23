@@ -1,0 +1,93 @@
+- 윈도우에 WSL설치하고 우분투 설치하기
+ 
+  > 윈도우 업데이트 후 실행
+  > cmd를 관리자권한으로 실행 후
+     wsl --install
+
+- Oracle VirtualBox 다운로드
+  www.virtualbox.org
+
+- rocky linux iso 다운로드
+  www.rockylinux.org
+
+- MobaXterm 다운로드
+  https://mobaxterm.mobatek.net/
+
+- sudo apt-get update 
+- sudo apt install openssh-server -y
+- sudo apt install net-tools -y
+- netstat -ntlp
+
+- 서비스 제어
+  sudo service ssh stop
+
+- 로그인시에 적용되는 환경설정 파일(사용자별)
+
+  .bash_profile(.profile) : 사용자 로그인시 한번 읽어서 적용.
+                       환경변수(전역변수)와 같이 전체 시스템에 적용돼야하는 설정 저장
+
+  .bashrc : 셸이 새로 동작할 때 적용돼야하는 설정 저장
+              alias 와 같은 명령을 저장하여 모든 셸에서 사용가능하도록 설정
+
+- 시스템 전체에서 사용되는 환경설정 파일
+  /etc/bash_profile(/etc/profile)
+  /etc/bashrc
+
+- export : 일반변수를 환경변수로 만들어주는 명령
+
+- set : 전체 변수 출력
+- env : 환경변수만 출력
+
+- 절대경로와 상대경로
+
+  절대경로 : '/' 부터 모든 경로를 표시하는 방법
+                예) /etc/systemd/system
+                위치와 상관없이 사용 가능
+
+  상대경로 : 현재 위치를 기준으로 경로를 표시하는 방법
+                예) 현재위치 /home/admin
+                     /home/admin/lab 디렉토리 이동할 경우
+                     cd lab   => '/'는 없어야 함. 
+                   
+==================================================
+- Rocky linux 
+
+  > root로 로그인
+     dnf install net-tools
+     netstat -ntlp  => TCP 22번 포트 리스닝중   
+     ifconfig  또는 ip addr
+
+
+- 개인키/공개키를 이용한 SSH 접속
+
+  개인키와 공개키 생성 => 생성 위치는 상관없음.
+  공개키가 ~/.ssh 디렉토리에 있는 authorized_keys 파일에 있으면 됨.
+  클라이언트에서 개인키(id_rsa)를 이용해서 서버에 접속할 수 있음.
+  MobaXterm의 경우는 Advanced SSH Setting에서  private key에 
+  해당 개인키를 추가하면 됨.
+
+- CLI에서 ssh 클라이언트와 개인키를 이용해서 접속하는 방법
+
+  ssh -i 개인키 아이디@서버IP주소
+
+- 공개키를 다른 서버에 복사하는 방법
+
+  cd ~/.ssh   => 개인키와 공개키가 있어야함.
+  ssh-copy-id -i 개인키 아이디@복사하려는서버IP주소  
+
+- ~/.ssh 디렉토리의 authorized_keys 파일은 공개키를 가지고 있는 파일.
+  추가적인 공개키가 있으면 해당 파일에 추가하면 됨.
+
+- authorized_key 파일의 퍼미션은  644(rw- r-- r--) 이어야 함.
+
+
+
+
+
+
+
+
+
+
+
+
