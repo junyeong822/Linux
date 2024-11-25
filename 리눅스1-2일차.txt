@@ -1,0 +1,111 @@
+리눅스 - Rockylinux ,  ubuntu
+
+- 설치
+
+  WSL(Window Subsystem for Linux) - 1대만 사용 가능
+  Virtualbox, Vmware - VM을 여러개 생성하고 동시 사용 가능
+
+1) WSL : 윈도우 업데이트 완료
+            cmd를 관리자권한으로 실행
+            wsl --install => wsl설치와 최신버전 ubuntu 설치가 진행됨
+            이후에 다른 버전이나 다른 리눅스를 설치하려면 
+            microsoft store에서 검색후 설치
+            삭제는 다른 프로그램과 마찬가지로 앱 및 기능에서 삭제
+
+2) Virtualbox설치하고 VM생성후에 ISO파일(설치파일) 이용해서 설치
+
+
+- systemd 프로세스는 target을 이용해서 runlevel을 설정함.
+
+  graphical.target = runlevel 5
+  multi-user.target = runlevel 3
+
+- 현재 런레벨 확인
+  runlevel
+ 
+- 현재 설정된 기본 런레벨 확인
+  systemctl get-default
+
+- 다음 부팅때 사용할 런레벨 설정
+  systemctl set-default multi-user.target
+
+- 일시적으로 런레벨을 변경할 경우
+  systemctl isolate multi-user.target
+
+- nmcli con modify enp0s3 ipv4.address 192.168.100.67/24 ipv4.gateway 192.168.100.1 ipv4.dns 8.8.8.8
+
+
+- 사용자 관리
+
+  /etc/passwd : 계정정보 저장
+  /etc/shadow : 계정 패스워드와 패스워드 에이징 정보 저장
+  /etc/group : 그룹정보 저장.  마지막 필드값은 2차그룹으로 사용하는 사용자목록
+  /etc/gshadow : 그룹 패스워드 저장.  사용자가 패스워드가 설정된 그룹에 가입하고자 할 때 사용.
+
+  /etc/default/useradd : 사용자 생성시 적용되는 기본값
+                                useradd -D 로 확인 가능.   useradd -D  옵션으로 변경 가능.
+
+                                /etc/skel에 포함된 파일들은 사용자생성시 홈디렉토리에 복사됨.
+
+  /etc/login.defs : 계정생성시 useradd보다 우선적으로 적용되는 내용이 저장된 파일.
+                        사용자 계정의 최소값은 1000으로 설정돼 있음.(/etc/default/useradd에는 100으로 설정됨.)
+
+
+- 프로세스 관리
+
+  kill 명령 : 프로세스에게 시그널을 보내는 명령
+               kill 시그널 [ PID | %작업번호 ]
+
+               kill 100  => 100 프로세스에게 SIGTERM(-15) 전송하여 종료하게 함. 기본시그널임.
+               kill -9 %5 => 작업번호 5번에게 SIGKILL 전송하여 강제 종료하게 함.
+               kill [-1 | SIGHUP ] 10000   => 10000번 프로세스에게 SIGHUP 전송하여 프로세스를 일시정지했다가
+                                                       다시 동작하도록 함.  이때 프로세스 아이디는 바뀌지 않고
+                                                       설정파일이 있는 경우 다시 적용하여 동작함. 즉 설정파일을 변경하고
+                                                       PID변경없이 프로세스에 적용하고자 하는 경우에 사용.
+
+- 데몬(서비스) 관리 : systemd가 관리하는 데몬들은 systemctl 명령으로 제어할 수 있음.
+                            기존에 service 명령을 사용했기 때문에 현재도 사용 가능. 
+                            기존)  service sshd start
+                            현재)  systemctl start sshd
+
+                            사용법 :  systemctl  명령  데몬명.socket  => 필요할 때 해당 프로세스를 메모리로 올려서 동작시킴.
+                                                                                       기존에는 inetd, xinetd라는 슈퍼데몬이 해당 데몬들을 관리함.
+                                        systemctl  명령  데몬명.service  => 서비스 생략 가능.  항상 메모리에 상주.
+  
+                                        명령 :   start   : 데몬시작
+                                                  stop    : 데몬중지
+                                                  restart :  데몬 재시작
+                                                  enable  : 데몬을 시스템 시작할 때 함께 시작
+                                                  disable :  시스템 시작시 데몬시작 안함.
+                                                  status  :  데몬 상태 확인
+                                                  reload :  설정 다시 읽어들임.
+ 
+      
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
