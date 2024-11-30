@@ -1,0 +1,227 @@
+윈도우 업데이트 확인 후 명령 프롬포트 관리자 모드로 실행
+wsl --install 입력
+설치 완료 후 재부팅
+
+재부팅 후 뜨는 팝업창(ubuntu) 일정시간 지나고 username, password 입력
+
+- sudo apt-get update
+- sudo apt install openssh-server -y
+- sudo apt install net-tool -y
+- netstat -ntlp
+
+- ifconfig(ip확인)
+
+mobaxterm 실행 - 기존 session 삭제 - session 추가 - ip, password입력 - no
+다른 session 추가 -> 기존 session에 edit session - 추가할 ip, password입력 - no
+
+- 서비스 제어
+sudo service ssh stop
+
+- 로그인시에 적용되는 환경설정 파일(사용자별)
+
+.bash_profile(.profile) : 사용자 로그인시 한번 읽어서 적용
+		    환경변수(전역변수)와 같이 전체 시스템에 적용돼야하는 설정 저장
+.bashrc : 셸이 새로 동작할 때 적용돼야하는 설정 저장
+           alias와 같은 명령을 저장하여 모든 셸에서 사용가능하도록 설정
+
+- 시스템 전체에서 사용되는 환경설정 파일
+/etc/bash_profile(etc/profile)
+/etc/bashrc
+
+- export : 일반변수를 환경변수로 만들어주는 명령
+
+- set : 전체 변수 출력
+- env : 환경변수만 출력
+
+- 절대경로와 상대경로
+
+절대경로 : '/' 부터 모든 경로를 표시하는 방법
+ 	  /etc/systemd/system
+	  위치와 상관없이 사용 가능
+
+상대 경로 : 현재 위치를 기준으로 경로를 표시하는 방법
+	  예) 현재위치 /home/admin
+	       /home/admin/lab 디렉토리로 이동할 경우
+	      cd lab => '/'는 없어야함
+
+- Rocky linux
+
+> root로 로그인
+dnf install net-tools
+netstat -ntlp => TCP 22번 포트 리스닝중
+
+- 개인키/공개키를 이용한 SSH 접속
+개인키와 공개기 생성 => 생성 위치는 상관없음
+공개키가 ~/ssh 디렉토리에 있는 authorized_keys 파일에 있으면 됨
+클라이언트에서 개인키(id_rsa)를 이용해서 서버에 접속할 수 있음
+MobaXterm의 경우는 Advanced SSH Setting에서 private key에 해당키를 추가하면 됨
+
+- CLI에서 ssh 클라이언트와 개인키를 이용해서 접속하는 방법
+ssh -i 개인키 아이디@서버IP주소
+
+- 공개키를 다른 서버에 복사하는 방법
+cd ~/.ssh => 개인키와 공개키가 있어야함
+ssh-copy-id -i 개인키 아이디@복사하려는서버IP주소
+
+- ~/.ssh 디렉토리의 authorized_keys 파일은 공개키를 가지고 있는 파일
+추가적인 공개키가 있으면 해당 파일에 추가하면 됨
+
+- authorized_key 파일의 퍼미션은 644(rw- r-- r--)이어야 함
+
+admin )
+su -
+usermod -a
+
+sudo hostnamectl set-hostname rocky1
+
+ssh-keygen -t rsa -b 2048 
+cd .ssh
+pwd
+ls -a
+exit
+
+ssh-keygen -t rsa -b 2048
+cd .ssh
+pwd
+ls 
+
+mv id_rsa.pub authorized_keys
+cp authorized_keys id_rsa.pub
+ls
+id_rsa id_rsa.pub
+pwd
+cp id_rsa ..
+
+refleh folder
+추가된 파일 다운로드
+
+admin 닫기
+admin edit session
+advanced SSH setting
+
+cd .ssh
+ssh-copy-id -i id_rsa admin2@192.168.100.98
+yes
+pw 입력
+
+ls
+cp authorized_keys
+
+cd /etc/ssh/
+ls
+sudo nano sshd_config
+pw 입력
+sudo dnf install nano
+sudo nano sshd_config
+permit root - no
+password - no
+ctl x
+y
+sudo service sshd restart
+
+mkdir lab
+cd lab
+touch testfile
+ls -l
+ls -l /etc/profile
+sudo touch /etc/profile
+ls -l /etc/profile
+
+mkdir -p a/b/c
+cp /usr/bin/e* a/b
+ls a/b
+-l a/b
+ls -l /usr/bin/e*
+
+su -
+root pw
+mkdir lab
+cd lab
+cp -p /home/admin/lab/a/b/e* .
+ls -l
+exit
+
+mkdir d
+ls -l
+cp -r a d
+ls d
+ls -l
+mv d/a e
+ls -l
+ls d
+
+alias | grep rm
+ls
+rm testfile
+alias rm= 'rm -i'
+touch testfile
+rm testfile
+rm -f testfile
+
+touch testfile
+lsattr testfile
+sudo chattr +i testfile
+lsattr testfile
+rm testfile
+
+grep root /etc/passwd
+grep '^root' /etc/passwd
+
+admin2 )
+su -
+usermod -a
+
+sudo hostnamectl set-hostname rocky2
+dnf install tree
+
+cd .ssh
+ls
+admin2 닫기
+admin edit session
+advanced SSH setting
+
+ssh-keygen -t rsa -b 2048
+cd ~/ .ssh
+ls ~
+pwd
+mv ~/authorized_keys .
+ls -l
+chmod 644 authorized_keys
+
+개인키 복사
+ls -l
+ssh -i id_rsa admin@192.168.100.220
+chmod 400 id_rsa
+ssh -i id_rsa admin@192.168.100.220
+
+tree /etc
+sudo find /etc -name sshd
+sudo find /etc -name sshd?config
+find /usr/bin -perm -4000
+find ~/lab -type d
+find ~/lab -type f
+find /etc -maxdepth 1 -name sh*
+ls -l
+
+cd lab
+touch testfile1 testfile2 testfile3
+ls -l
+date
+touch testfile2
+ls -l
+cat testfile1
+ls -l
+ls -ul
+chmod 666 testfile3
+ls -l
+ls -al
+ls -cl
+sudo find /usr/bin -name "[v,b][o,x]*"
+cal ; date
+sudo apt install
+ls
+find ~/lab -name "test*" -exec rm {} \;
+
+uduntu )
+edit session
+advanced SSH setting
