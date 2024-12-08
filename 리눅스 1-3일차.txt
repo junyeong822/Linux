@@ -1,0 +1,596 @@
+date
+sudo date 112412002024
+
+- 시스템 시간이 현재 시간과 일치하지 않을 경우
+chronyd 서비스를 재시작하여 인터넷상의 시간서버와 동기화시킴
+chronyd 서비스가 없는 경우 설치하고 실행
+
+timedatectl : 시간/날짜를 제어하는 유틸
+ntp (network time protocol) : 네트워크상의 시간서버와 동기화하기 위해 사용되는 프로토콜
+sudo dnf install ntp
+
+chrony : 네트워크상의 시간서버를 운용하기 위한 서비스
+sudo dnf install chrony
+sudo service chrony start = sudo systemctl start chronyd
+sudo systemctl status chronyd
+timedatectl
+
+su -
+sudo dnf install at
+date
+at 09:25 today
+wall "hello at!" -> 지정된 시간에 모든 사용자에게 메시지 출력
+종료할때는 ctl + D
+at 09:30 today
+mkdir ~/work2
+cp /usr/s* ~/work2
+
+vi shell.sh
+#!/bin/bash
+mkdir /root/work3
+cp /usr/bin/x* /root/work3
+cd /root/work3
+rm xa* -> xa로 시작하는 모든 파일 제거
+touch shellscripttest
+:wq -> 저장하고 나가기
+
+atq
+ls
+ls work2
+ls -l
+
+sh shell.sh
+ls
+cd work3
+ls
+rm -rf work3 -> 디렉토리, 파일 상관없이 work3 지워라
+ls
+ls -l
+
+chmod u+x shell.sh
+ls -l
+shell.sh
+echo $PATH
+pwd
+./shell.sh
+ls
+rm -rf work3
+
+echo $PATH
+PATH=$PATH:/root -> 지역변수
+export PATH=$PATH:/root -> 전역변수 (환경변수)
+bash
+echo $PATH
+exit
+
+shell.sh
+rm -rf work3
+cd /etc
+shell.sh
+
+- 현재 작업디렉토리가 PATH변수에 등록돼있지 않은 경우에 현재 디렉토리에 있는 실행파일을 실행하고자 하는 경우 
+(현재 위치가 /root이고 실행하고자하는 파일이 shell.sh일 경우)
+1. 절대경로를 이용하여 실행 : /root/shell.sh
+2. 상대경로를 이용하여 실행 : ./shell.sh
+
+- echo $PATH : PATH변수에 등록된 내용이 출력됨 
+리눅스, 유닉스는 PATH변수에 등록된 디렉토리에 있는 파일만 실행 가능
+
+- 현재 위치와 상관없이 실행파일을 실행하고자 하는 경우
+PATH변수에 해당 디렉토리를 추가하면됨
+
+export PATH=$PATH:/root -> /root 디렉토리를 PATH변수에 추가하고 전역변수(환경변수)로 설정
+이후에는 위치와 상관없이 /root디렉토리에 있는 실행파일을 실행할 수 있음
+
+cd
+ls
+rm -rf work3
+date
+at 10:10 today
+/root/shell.sh
+<EOT>
+at -l
+atrm 4
+at -l
+date
+timedatectl set-timezone
+timedatectl set-timezone America/New_York -> 뉴욕시간으로 변경
+date
+timedatectl set-timezone Asia/Seoul -> 서울시간으로 변경
+date
+
+pstree | grep at
+pstree | grep cron
+crontab -e
+1 30 * * * 0 /root/shell.sh
+2 31 * * * 0 wall "cron test"
+:wq
+cromtab -l
+
+vi /root/shell.sh
+2 if [ -d /root/work3 ] ; then
+3 rm -f /root/work3
+4 fi
+:wq
+
+shell.sh
+cat shell.sh
+crontab -l
+
+ls /etc/cron.*
+cat /etc/cron.deny
+echo "rocky2" > /etc/at.deny
+echo "rocky2" > /etc/cron.deny
+exit
+at 14:00 today
+crontab -e
+
+su -
+echo "rocky2" > /etc/at.allow
+exit
+at 14:00 today
+sudo echo "사용자명" >> /etc/at.allow
+ls -l /etc/at.allow
+whitch echo
+ls -l /usr/bin/echo
+echo "사용자명" | sudo tee -a /etc/at.allow
+cat /etc/at.allow
+
+- at, cron 사용자 제한
+/etc/at.allow, /etc/at.deny
+/etc/cron.allow, /etc/cron.deny 파일을 통해서 사용자 제한을 함
+
+기본적으로 /etc/at.deny, /etc/cron.deny 파일이 생성돼 있고 내용은 없음
+-> deny파일에 등록된 사용자는 at또는 cron을 사용할 수 없음
+
+allow, deny가 모두 존재하는 경우 allow가 적용됨 따라서 한 사용자가 allow와 deny에 모두 포함된 경우
+해당 사용자는 at.cron을 사용할 수 있음
+
+allow, deny 파일에 사용자들을 한 라인에 한명씩 작성함
+
+* tee : 파일에 내용을 기록하는 명령
+
+$ sudo echo "사용자명" > /etc/at.allow -> 일반사용자가 root만 쓰기 가능한 파일에 echo를 이용해 
+기록하려고 하는 경우 sudo를 이용해서 허가 거부가됨
+$ echo "사용자명" | sudo tee /etc/at.allow -> tee 명령을 이용해서 echo로 출력한 내용을 파일에 쓰기할 때
+sudo 명령을 적용해서 root권한으로 쓰기 가능 기본값은 replace이고, -a 옵션을 이용하면 append가됨
+
+df -Th
+tree / | head
+ls /
+cd /var
+ls
+cd
+cd lab
+pwd
+mkdir lab -> cd lab이 없으면 만들기
+rm -rf *
+ls
+touch testfile1 testfile2 testfile3
+ls -l
+ls -il
+
+ln -s testfile1 softlink1
+ln -s testfile2 softlink2
+ln -s testfile3 softlink3
+
+ln  testfile1 hardlink1
+ln  testfile2 hardlink2
+ln  testfile2 hardlink3
+ls -il
+mkdir testdir
+ls -l
+ls -all testdir
+rm testfile1
+y
+ls -ial
+cat softlink1
+cat hardlink1
+ln -s /etc/sysconfig/network-scripts/ifcfg-enp0s3
+ls -l
+cat ifcfg-enp0s3
+cd /dev
+ls -l
+
+- 소유권 (Ownership) : 리눅스에서 파일의 소유자와 소유그룹으로 권한을 설정할 수 있음
+파일을 생성한 소유자와 소유자가 속한 그룹으로 소유권을 구분할 수 있음
+ls -l 명령으로 소유자와 소유그룹을 확인할 수 있고 
+소유자(user)와 소유그룹(group)에 해당하지 않는 그 외(other)에 해당함
+소유자, 소유그룹 변경 : chown chgrp 명령을 이용
+chown은 소유자와 소유그룹 모두 변경 가능
+chgrp는 소유그룹만 변경 가능
+
+chown [-R] user[.group] [file|directory]
+-r 옵션은 하위 모든 디렉토리, 파일에 적용
+
+chgrp [-R] group [file|dirctory]
+
+cd
+cd lab
+umask
+
+ls
+mkdir lab
+cd lab
+touch testfile1
+mkdir testdir
+ls -l
+chmod a+w testdir
+ls -ld testdir
+chmod go-w testdir
+ls -ld testdir
+touch testdir/testfile4
+ls -l testfile4
+chmod g+w testdir
+chmod -R g+w testdir
+ls -l testdir
+chmod o-rx testdir
+ls -ld testdir
+chmod ug+r testdir
+ls -ld testdir
+chmod a=rwx testdir
+ls -ld testdir
+chmod 755 testdir
+chmod u=rwx,g=rx,o=rx testdir
+ls -ld testdir
+chown -R 사용자명 testdir
+ls -ld testdir
+chown 사용자명:사용자명 testdir
+ls -ld testdir
+chgrp root testdir
+man chmod
+umask
+chmod ugo-x testdir
+ls -ld testdir
+cd testdir
+exit
+cd /tmp
+mkdir admin-dir
+ls -ld admin-dir
+chmod ugo-x admin-dir
+ls -ld admin-dir
+cd admin-dir
+su - -> root 로그인 되어있으면 X
+cd lab
+umask -S
+umask 0077
+mkdir testdir2
+touch testfile2
+ls -l
+
+cd lab
+cat /etc/passwd | head
+cat /etc/shadow | head
+passwd
+새 암호 입력
+which vi
+ls -l /usr/bin/vim
+which passwd
+ls -l passwd
+ls -l usr/bin/passwd
+cp usr/bin/vi .
+ls
+sudo chown root vi
+ls -l
+sudo chmod 755 vi
+sudo chmod 4755 vi
+ls -l
+./vi /etc/shadow
+:q!
+
+- umask : 파일 또는 디렉토리 생성시 전체 퍼미션에서 제거할 퍼미션
+파일은 생성시 기본 전체 퍼미션 : 666
+디렉토리는 생성시 기본 전체 퍼미션 : 777 
+-> 디렉토리 권한에 실행권한이 필요한 이유 : 해당 디렉토리에 접근하기 위해서는 실행권한 필요함 
+즉 cd명령으로 접근하기 위해서 실행권한 필요
+
+root의 umask : 0022
+일반사용자의 umask : 0002
+
+umask 명령을 옵션없이 실행하면 현재 설정된 umask 값을 출력
+umask -S 명령을 실행하면 현재 설정된 umask값에 의해 파일 또는 디렉토리 생성시 부여되는 퍼미션 출력
+
+* umask 값을 많이 설정하면 파일  또는 디렉토리 생성시 제거되는 퍼미션이 많아짐
+
+sudo chmod 4644 testfile2
+ls -l
+./vi /etc/shadow
+:q!
+
+- find 명령으로 setuid설정된 파일 검색하기
+cd /tmp
+find /home -perm -4000
+find /home -perm -4000 -exec rm {} |:
+ls -l /home/rocky2
+mv vi ~/lab
+cd ~/lab
+ls -l
+umask 0002
+chmod 2755 vi
+ls -l
+ls -ld /tmp
+cd /tmp
+cp /etc/profile .
+ls -l profile
+chmod o+w profile
+ls -l profile
+sudo passwd user1
+su -user1
+cd /tmp
+ls -l profile
+rm profile
+ls -ld .
+
+rocky 종료 - 설정 - 저장소 - 컨트롤러 : SATA 디스크 추가 (5GB 6개) - 확인 - 시작
+cd /dev
+ls sd*
+fdisk -l
+fdisk -l /dev/sdb
+
+fdisk /dev/sdb
+1번
+p
+n
+p
+enter 
+enter 
++2G
+
+2번
+n
+p
+enter
+enter
++1G
+
+3번
+n
+p
+enter
+enter
++1G
+
+4번
+n
+e
+enter
+enter
+
+5번
+p
+n
+enter
++500M
+
+6
+n
+enter
+enter
+p
+w
+
+fdisk -l /dev/sdb
+mkfs -t ext4 /dev/sdb1
+mkfs -t xfs /dev/sdb2
+cd
+cd /
+ls
+cd mnt
+ls
+mkdir mp1 mp2
+ls -l
+mount /dev/sdb1 mp1
+mount /dev/sdb2 mp2
+ls mp1
+ls mp2
+df -Th
+cd mp1
+cp /usr/bin/s* .
+cd ..
+umount mp1
+ls mp1
+mount /dev/sdb1 mp1
+ls mp1
+
+fdisk /dev/sdc
+n
+e
+2
+enter
+enter
+n
+enter
++2G
+n
+enter
+enter
+p
+w
+fdisk -l /dev/sdc
+mkfs.
+which mkfs.xfs
+ls -l /usr/sbin/mkfs
+
+df -Th
+df -ht ext4
+df -ht xfs
+du /home
+du -s /home
+du -sh /home
+
+- 새로운 하드디스크를 추가한 후 시스템에서 사용가능하도록 하는 과정
+1. 파티션 생성 : 하드디스크는 파티션을 생성해야 파일시스템을 생성할 수 있음
+fdisk /dev/sdb -> 원하는 파티션을 생성
+2. 파일 시스템 생성 : ext4, xfs등 사용할 파일시스템 생성
+mkfs -t ext4 /dev/sdb1
+mkfs.xfs /dev/sdb2 - 반드시 파티션을 사용해야함
+3. 마운트 지정생성 : 리눅스에서는 모든 장치가 마운트를 통해 시스템에 연결돼야 사용가능함
+마운트후에 해당 디렉토리에 파일을 쓰면 연결된 파티션에 파일쓰기가 됨
+mkdir /mnt/mp1 /mmt/mp2
+mount /dev/sdb1 /mnt/mp1
+mount /dev/sdb2 /mnt/mp2
+4. mount명령으로 연결한 경우에는 시스템이 리부팅되면 해당 마운트는 해제됨
+리부팅후에도 연결된 상태를 유지하려면 /etc/fstab에 등록해야함
+vi /etc/fstab
+          장치명	        마운트포인트(/) 	         파일시스템타입       옵션       덤프여부   fsck순서
+/dev/mapper/rl-root              /                       	   xfs     	        defaults        0            0
+UUID=24ad613e-e40b-474b-bf93-cdff5317bb6d /boot       xfs              defaults        0            0
+/dev/mapper/rl-home       /home                   	   xfs             defaults         0            0
+/dev/sdb1	       /mnt/mp1			  ext4	       defaults         0            0
+/dev/sdb2	       /mnt/mp2			   xfs	       defaults         0            0
+:wq
+5. umonut -a : 현재 마운트된 상태에(/etc/mtab)서 마운트해제 가능한 모든 연결을 해제함
+6. mount -a : /etc/fstab에 등록된 내용대로 모두 마운트시킴
+
+systemctl daemon-reload
+mount -a
+df -Th
+blkid | grep /dev/sdb1
+blkid | grep /dev/sdb2
+
+more /proc/swaps
+
+- swap : 하드디스크를 이용한 가상메모리 공간 리눅스에서 swap은 설치시 반드시 필요한 공간
+설치후에 swap공간 추가가 가능함 지금은 메모리 공간 충분하므로 큰 swap 공간이 반드시 필요하지는 않음
+swap공간 추가시 파일을 이용하거나 파티션을 이용해서 추가
+
+getenforce
+setenforce 0
+getenforce
+
+vi /etc/sysconfig/selinux
+selinux=disabled
+:wq
+
+fdisk /dev/sdd
+n
+enter
+enter
+enter
+p
+
+t
+L
+8e
+p
+w
+
+fdisk /dev/sde
+n
+p
+enter
+enter
+enter
+t
+8e
+w
+
+fdisk /dev/sdf
+n
+p
+enter
+enter
+enter
+t
+8e
+w
+
+fdisk /dev/sdg
+n
+p
+enter
+enter
+enter
+t
+8e
+w
+
+pvcreate /dev/sdd1 dev/sdf1 /dev/sdg1
+vgcreate koreait /dev/sdd1 /dev/sde1 /dev/sdf1
+vgdisplay koreait
+lvcreate -L10G -n linux koreait
+lvcreate -l 100%FREE -n network koreait
+lvs
+
+mkdir mp3 mp4
+mkfs.ext4 /dev/koreait/linux
+mkfs.xfs /dev/koreait/network
+mount /dev/koreait/linux /mnt/mp3
+mount /dev/koreait/network /mnt/mp4
+df -Th | grep mp
+vgs
+
+vgextend koreait /dev/sdg1
+vgs
+lvextend -L+3G koreait/linux
+lvextend -l+100%FREE koreait/network
+df -Th
+
+resize2fs /dev/koreait/linux
+df -Th
+xfs_growfs /dev/koreait/network
+df -Th
+
+umount -a
+lvremove koreait/linux y
+lvremove koreait/network y
+vgremove koreait
+pvremove /dev/sdd1 /dev/sde1 /dev/sdf1 /dev/sdg1
+pvs
+vgs
+lvs
+
+vi /etc/fstab
+mp1 mp2 삭제
+fdisk /dev/sdb ~ g
+d - 모두 삭제
+p
+n - enter
+t
+fd
+w
+재부팅
+
+more /proc/devices | grep md
+more /proc/devices | grep sd
+ls -l /dev/sda
+ls -l /dev/sdb
+ls -l /dev/sdc
+ls -l /dev/md*
+mknod /dev/md0 b 9 0
+mknod /dev/md1 b 9 16
+ls -l /dev/md*
+mdadm --version
+mdadm --create --verbose /dev/md0 --level=0 --raid-devices=2 /dev/sdb1 /dev/sdc1
+mdadm --detail /dev/md0
+mdadm --create --verbose /dev/md1 --level=1 --raid-devices=2 /dev/sdd1 /dev/sde1
+mdadm --detail /dev/md1
+mkfs.ext4 /dev/md1
+cd /mnt
+ls
+df -Th
+mount /dev/md1 /mnt/mp1
+cp /usr/sbin/* /mnt/mp1
+mdadm --detail /dev/md1
+mdadm -f /dev/sde1
+mdadm /dev/md1 -f /dev/sde1
+mdadm --detail /dev/md1
+ls /mnt/mp1
+mdadm /dev/md1 --add /dev/sdf1
+mdadm --detail /dev/md1
+mdadm --stop /dev/md0,1
+umount /mnt/mp1
+mdadm --create --verbose /dev/md0 --level=5 --raid-devices=3 /dev/sdb1 /dev/sdc1 /dev/sde1
+mdadm --detail /dev/md0
+mdadm /dev/md0 --add /dev/sde1
+mdadm --detail /dev/md0
+mdadm /dev/md0 -f /dev/md0
+mdadm --create --verbose /dev/md1 --level=10 --raid-devices=5 /dev/sdb1 /dev/sdc1 /dev/sdd1 /dev/sde1 
+/dev/sdf1
+mdadm --stop /dev/md1
+mdadm --create --verbose /dev/md1 --level=10 --raid-devices=4 /dev/sdb1 /dev/sdc1 /dev/sdd1 /dev/sde1 
+mdadm /dev/md1 --add /dev/sdf1
+mdadm --detail /dev/md1
+mdadm /dev/md1 -f /dev/sdc1
+mdadm --detail /dev/md1
+
