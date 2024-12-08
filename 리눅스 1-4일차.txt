@@ -1,0 +1,474 @@
+/dev/sdc1 /dev/sdd1 /dev/sde1  => Linux LVM
+
+VG : gdn11
+
+LV : data(5G, ext4)
+
+마운트 포인트 /home/data
+
+mount /dev/gdn11/data /home/data
+
+/etc/fstab에 등록, 옵션: defaults, usrquota  0 0
+
+/dev/gdn11/data	    /home/data  ext4   defaults,usrquota  0  0
+
+umount -a
+mount -a
+
+pvcreate
+excluded by a filter
+
+mdadm --detail /dev/md0
+mdadm --detail /dev/md1
+mdadm --stop /dev/md0
+mdadm --stop /dev/md1
+
+mdadm --zero-superblock /dev/sdc1
+mdadm --zero-superblock /dev/sdd1
+mdadm --zero-superblock /dev/sde1
+
+pvcreate /dev/sdc1 /dev/sdd1 /dev/sde1
+
+<디스크 쿼터>
+특정 파티션의 저장공간을 사용자/그룹이 일정공간만 사용할 수 있도록 제한을 하는 기능
+웹호스팅이나 서버호스팅을 하는 경우 사용자/그룹별로 저장공간을 할당할 필요가 있음
+상품에 따라서 저장공간을 제한해야하므로 이 때 사용자쿼터를 사용해서 저장공간을 제한함
+
+-사용자쿼터를 사용하기 위해서는 파티션에 해당 옵셩을 활성화해야함
+
+cat /etc/fstab
+mdadm --detail
+mdadm --stop md0,1
+
+fdisk /dev/sdb
+p - t - 83 - p - w
+
+fdisk /dev/sdh
+n enter enter enter w
+mkfs -t ext4 /dev/sdh1
+
+cd /mnt
+vi /dev/fstab 마지막줄에
+/dev/sdh1	    /mnt/mp1  ext4   defaults,usrquota  0  0 입력 후 저장
+systemctl daemon-reload
+mount -a
+mount
+
+/etc/fstab 마운트 정복 등록시 usrquota 또는 groupquota 옵션을 설정함
+/dev/sdh1	/mnt/mp1	ext4	default,quota	0   0
+
+fstab이 변경되면 systemctl daemon-reload를 이용해서 변경사항을 적용함
+mount -a
+mount 
+/dev/sdh1 on /mnt/mp1 type ext4 (rw,relatime,quota,usrquota)
+
+- 사용자쿼터 설정을 위한 DB 생성
+quotacheck -au : 모든 파일시스템을 검색해서 usrquota 옵션이 설정된 파티션에 usrquota DB 생성
+               -aug : g는 그룹쿼터 DB 생성
+
+- 사용자퉈터 활성화
+quotaon -uv /mnt/mp1 : mp1에 userquota 활성화 v 옵션은 자세한 정보 출력
+           -auv : 모든 파일시스템을 검색해서 userquota 설정 활성화
+quotaoff -uv /mnt/mp1 : mp1에 userquota 비활성화
+
+- 쿼터설정
+edquota -u rocky2 (사용자명)
+   soft hard 
+   10   10  입력 후 저장
+
+ls -ld .
+ls -l
+
+cd /mnt/mp1
+touch 1 2 3 4 5 6 7 8 9 10
+repquota -a
+
+- 쿼터 설정
+edquota -u rocky2 (사용자명)
+Disk quotas for user rocky2 (uid 1000):
+Filesystem	blocks	     soft	  hard	inodes	soft   hard
+/dec/sdh1	      0	       0	    0         0	 10     10
+		저장용량제한  		   파일개수제한
+		soft limit : 제한 용량 또는 제한 파일개수 초과할 수 있음
+		hard limit : 제한 용량 또는 제한 파일 개수 초과할 수 없음
+ 		softlimit을 초과한 부분은 grace period
+
+grace period 확인 및 변경
+edquota -t
+Filesystem                   blocks       soft       hard     inodes     soft     hard
+/dev/sdh1                         0       1000     1200        12         10       10
+
+-쿼터 적용 상태 확인
+requota -a
+
+- 특정 사용자의 쿼터 설정 내용을 다른 사용자에게 동일하게 적용할 경우
+edquota -p rocky2 user1
+
+* xfs 파일시스템에 디스크 쿼터를 적용할 경우 : xfs_quota를 이용해서 적용함
+
+tar : 여러개의 파일을 하나의 파일로 묶어주는 유틸리티
+
+cd /lab
+rm -rf *
+mkdir backup restore
+cd backup
+cp /usr/bin/z* .
+ls
+tar cvf zcmd.tar *  : c옵션은 파일을 묶을때 사용 v옵션은 과정표시로 생략가능
+ls
+tar tf zcmd.tar : t옵션은 묶인 파일 확일할 때 사용
+tar xvf zcmd.tar -C ../restore : x옵션은 묶인 파일 풀 때 사용 -C옵션은 tar를 해제할 디렉토리 지정
+                                     -C옵션을 사용하지 않으면 현재 디렉토리에 tar 해제함 
+ls ../restore
+
+압축프로그램 : 파일의 용량을 줄이는 유틸리티
+압축 : gzip, bzip2, xz, zip, compress
+확장자 : gz bzip2 xz z Z
+
+gzip scmd1.tar - scmd1.tar.gz
+bzip2 scmd2.tar - scmd2.tar.bz2
+xz scmd3.tar - scmf3.tar.xz
+zip scmd4.tar.z scmd4.tar -> 압축파일명을 지정해야함
+compress scmd5.tar - scmd5.tar.Z
+압축 해제 : gunzip, bunzip2, xz, unzip, uncompress
+압축 명령에 옵션(-d)을 사용하면 압축해제 가능함
+gunzip scmd1.tar - gzip -d scmd1.tar.gz
+bunzip2 scmd2.tar - bzip2 -d scmd2.tar.bz2
+xz -d scmd3.tar.xz
+unzip scmd4.tar.z 
+uncompress scmd5.tar - compress -d scmd5.tar.Z
+
+* Source 베포시 tar.gz tar.xz tar.bz2로 주로 베포함
+- tar(묶기/풀기)와 압축/압축해제를 한번에 실행하기
+tar cf acmd.tar a* : 현재 디렉토리에서 a로 시작하는 모든 파일을 acmd.tar로 묶기
+gzip acmd.tar
+tar cfz acmd.tar.gz a* : z옵션을 gzip을 이용해서 압축까지 실행함
+tar cfj acmd.tar.bz2 a* : j옵션은 bzip2를 이용해서 압축까지 실행함
+tar cfj acmd.tar.xz a* : j옵션은 xz를 이용해서 압축까지 실행함
+tar cfZ acmd.tar.Z a* : Z옵션은 compress를 이용해서 압축까지 실행함
+
+압축해제와 tar해제를 동시에 실행 : -C로 해제할 디렉토리 지정 가능
+tar xfz acmd.tar.gz : z옵션은 생략가능
+tar xfj acmd.tar.bz2
+tar xfj acmd.tar.xz
+tar xfZ acmd.tar.Z
+
+cd /lab
+https://www.openwall.com/john/
+tar.xz, 33 MB, tar.gz, 43 MB 마우스 우클릭 -  링크 주소 복사
+wget 링크 주소 붙여넣기
+gunzip john-1.9.0-jumbo-1.tar.gz
+ls -lh
+tar xf john-1.9.0-jumbo-1.tar -C restore
+ls restore
+tar xfJ john-1.9.0-jumbo-1.tar.xz
+ls -lh
+
+- 소프트웨어 추가하기
+1. apt-get(ubuntu) 또는 dnf(rocky) 을 이용해서 인터넷상의  저장소로부터 패키지를 설치함
+   소프트웨어 설치시 의존성 부분을 자동적으로 해결해줌
+   의존성은 A소프트웨어 설치하기 위해 B(라이브러리)가 필요할 경우 A는 B에 의존하고 있을을 가리킴
+   따라서 의존성을 해결하기 위해서는 B를 설치하고 A를 설치해야함
+   이때 apt-get을 이용하면 자동적으로 필요한 라이브러리를 설치하고 해당 소프트웨어를 설치함
+   단점은 저장소에 있는 소프트웨버 버젼은 일반적으로 최신버젼이 아님
+
+2. rpm(rocky), deb(ubuntu) 등의 소프트웨어를 설치하는 유틸리티를 이용하여 설치
+~~ rpm, ~~deb : 설치해서 바로 사용할 수 있도록 모든 파일이 포함된 설치 파일
+                      의존성은 관리자가 해결해야함
+                      rpm 또는 deb 유틸리티를 이용해서 관리함
+rpm -i(설치) telnet-server-0.17-76.el8.x86_64.rpm
+     -U(없으면 설치, 있으면 업그레이드)
+     -qa : 설치된 모든 패키지 출력 : rpm -qa | grep telnet -> 모든 패키지에서 telnet을 포함한 패키지만 출력
+     -e telnet-server-0.17-76.el8.x86_64
+     --nodeps : 의존성을 무시하고 설치 또는 삭제하는 옵션
+     -qc 패키지명 : 패키지의 설정파일 출력
+     -qf 파일명 : 파일이 속한 패키지명 출력
+     -ql 패키지명 : 패키지에 의해 설치된 파일 출력
+
+3. 컴파일 : 소스파일을 이용해서 실행파일을 생성함
+configure : 컴파일에 필요한 의존성 파일들을 점검 없으면 오류발생
+make : 실행파일을 만드는 작업
+make install : 만들어진 실행파일을 지정된 디렉토리에 복사하는 작업
+일반적으로 위와 같은 과정을 거쳐서 실행파일을 만들지만 소스코드에 따라서 다른 방법을 사용하기도함
+모든 소스코드에는 컴파일 방법이 포함돼있음
+
+make -s clean && make -sj4
+
+* && : 앞 명령이 성공해야 뒤에 있는 명령이 실행됨
+  || : 앞 명령이 실패해야 뒤에 있는 명령이 실행됨
+  ; : 연속적으로 명령을 실행
+
+cd /run/media/root/Rocky-8-10-x86_64-dvd/Appst/Packages/t
+rpm -qa telnet
+rpm -qa | telnet
+telnet
+ls telnet*
+rpm -i telnet-0.17-76.el8.x86_64.rpm 
+
+cd ../w
+ls wire*
+rpm -Uvh wireshark-2.6.2-17.el8.x86_64.rpm  
+rpm -Uvh wireshark-2.6.2-17.el8.x86_64.rpm --nodeps
+rpm -e wireshark-2.6.2-17.el8.x86_64
+
+rpm -qa | ssh
+rpm -qc openssh-server-8.0p1-24.el8.x86_64
+which ssh
+rpm -qf /usr/bin/ssh
+rpm -ql openssh-client-8.0p1-24.el8.x86_64
+
+cd doc
+less INSTALL-FEDORA
+dnf update
+dnf install gcc openssl-devel
+dnf install make
+cd src
+ls -l configure
+./configure
+cd ../run
+ls -l john
+ls -lh john
+
+sudo cat /etc/passwd
+sudo passwd user1
+applecd .
+sudo passwd user2
+banana
+sudo passwd user3
+melon
+
+cd /run
+sudo cp /etc/shadow .
+sudo chmod 644 shadow
+./john shadow
+1234	(admin2)
+apple	(user1)
+1234	(root)
+banana	(user2)
+melon	(user3)
+
+크래킹된 패스워드 확인
+cat john.pot
+
+su root
+rpm -qa | grep syslog
+dnf install rsyslog
+rpm -ql rsyslog
+vi /etc/rsyslog.config
+local0.warn	/var/log/test.log
+:wq
+systemctl restart rsyslog
+cd /var/log
+logger -p local0.warn "rsyslog test1"
+cat test.log
+logger -p local0.err "rsyslog test2"
+cat test.log
+tail /var/log/massages
+tail -f messages
+last
+file lastlog
+file /etc/profile
+lastlog
+ls
+vi /etc/logrotate.conf
+cd /etc/logrotate.d/
+ls
+cat wtmp
+cat bootlog
+cd ..
+cd /var/log/
+ls
+date 121514002024
+logrotate /etc/logrotate.conf
+ls
+systemctl restart chronyd
+date
+
+vi /etc/rsyslog.conf
+21 22 25 26 # 제거
+:wq
+service rsyslog restart
+netstat -ntlp
+netstat -ntulp
+systemctl stop firewalld
+
+Rocky Linux에서 방화벽 (firewalld)사용하기
+sysyemctl start firewalld : firewalld라는 방화벽 서비스 시작 기존에는 iptables를 사용함
+기본적으로 시작되고 ssh서비스만 (tcp 22)포트만 개방되어 있음
+systemctl stop firewalld : 방화벽 비활성화
+firewall-cmd : firewalld를 제어하기 위한 클라이언트 프로그램
+firewall-cmd --list-service : add-service로 개방된 서비스 출력
+firewall-cmd --list-port : add-port로 개방된 포트 출력
+firewall-cmd --add-service=http : tcp 80포트 개방
+--add-service, --add-port로 개방한 포트들은 리부팅하면 원래대로 차단됨
+해당 옵션으로 개방하면 즉시 적용됨
+firewall-cmd --add-port=80/tcp
+firewall-cmd --add-port=514/tcp
+firewall-cmd --add-port=514/udp
+firewall-cmd --add-port=80/tcp
+
+firewall-cmd --remove-port=514/tcp
+firewall-cmd --remove-port=514/udp
+firewall-cmd --remove-service=http
+
+- 영구적으로 포트나 서비스를 개방하고자 할 경우 --permanent 옵션을 사용함
+firewall-cmd --permanent --add-service=syslog
+위 명령을 입력해도 해당 서비스는 개방되지 않음 따라서 추가된 내용을 적용하려면 다음 명령을 수행해야함
+firewall-cmd --reload
+
+less /etc/services
+
+dnf install httpd
+systemctl start httpd
+netstat -ntlp
+firewall-cmd --remove-port=80/tcp
+firewall-cmd --add-port=80/tcp
+
+ubuntu
+cd /etc/rsyslog.d
+vi /etc/rsyslog.conf
+ls 
+vi 50-default.conf
+user.* 밑에 *.* @192.168.100.47 (본인 Rocky IP)입력
+
+syslog - 로그를 원격 서버로 전송하기 위해 사용하는 프로토콜
+
+udp 514(기본) 또는 tcp 514
+
+cisco ios에서 로그 서버로 메시지를 전송하기 위한 설정
+
+conf t
+logging host X.X.X.X
+logging trap 로깅수준  :  trap으로 설정된 수준이상의 로그만 발생이 됨.
+logging source-interface 인터페이스  : 로그 서버가 위치한 방향의 인터페이스 설정
+
+CentOS(192.168.80.166) - 로그서버
+
+- /etc/rsyslog.conf 
+
+- syslog 수신 설정(UDP/TCP 514)
+ 
+# Provides UDP syslog reception
+$ModLoad imudp
+$UDPServerRun 514
+
+# Provides TCP syslog reception
+$ModLoad imtcp
+$InputTCPServerRun 514
+
+- 방화벽 개방
+  firewall-cmd --permanent --add-service=syslog -> UDP 514번 개방
+  firewall-cmd --permanent --add-port=514/tcp  =>  TCP 514번을 이용하는 경우는 별도 개방.
+  firewall-cmd --reload
+
+- systemctl restart rsyslog
+
+>> WSL 우분투 설정 로그를 보내는 클라이언트 시스템
+- /etc/rsyslog.d/50-default.conf
+ 
+- 서버의 로그를 로그서버로 전송하기 위한 설정
+
+*.*				@192.168.100.47(본인 Rocky IP) => UDP 514
+*.*				@@192.168.100.47(본인 Rocky IP):514 => TCP 514
+
+- 서비스 재시작
+  systemctl restart rsyslog  
+
+- 로그를 DB에 기록하기 위한 설정
+dnf install rsyslog-mysql
+
+- DB 설치
+dnf install mariadb-server -y
+systemctl start mariadb
+systemctl enable mariadb
+
+- 웹으로 접속하기 위한 apache와 php설치
+dnf install httpd php php-mysqlnd php-gd -y
+systemctl start httpd
+systemctl enable httpd
+
+- rsyslog가 DB에 로그를 기록하기 위한 설정
+
+mysql -u root < /usr/share/doc/rsyslog/mysql-createDB.sql
+
+mysql -u root -p
+그냥 엔터 누르기
+
+mysql> grant all privileges on Syslog.* to syslog@localhost identified by '1234' with grant option;
+
+mysql> flush privileges;
+mysql> quit
+firewall-cmd --permanent --add-port=80/tcp
+firewall-cmd --reload
+
+vi /etc/rsyslog.conf
+
+#Module 부분 하단에
+
+$ModLoad ommysql
+
+*.*      :ommysql:localhost,Syslog,syslog,1234
+
+:wq 
+
+systemctl restart rsyslog
+
+cd lab
+
+- Loganalyzer 서버 프로그램 다운로드
+
+http://loganalyzer.adiscon.com
+
+- wget http://download.adiscon.com/loganalyzer/loganalyzer-4.1.12.tar.gz
+
+- 압축 해제 및 tar해제
+
+gunzip loganalyzer-4.1.12.tar.gz
+gzip -d loganalyzer-4.1.12.tar.gz
+
+tar xf loganalyzer-4.1.12.tar 
+
+- 확인
+ls
+
+loganalyzer-4.1.12
+
+- loganalyzer 디렉토리를 웹서버의 Root로 이동. 이름은 loganalyzer
+
+mv loganalyzer-4.1.12 /var/www/html/loganalyzer
+
+vi /etc/sysconfig/selinux
+
+SELINUX=disabled
+
+firewall-cmd --list-all
+firewall-cmd --permanent --add-service=http
+firewall-cmd --reload
+systemctl start httpd
+netstat -an | grep :80
+
+-config 파일 생성
+cd src
+sh ../contrib/configure.sh
+
+http://192.168.100.47(본인 Rocky IP)/log/src/install.php
+
+vi /etc/rsyslog.conf
+
+:wq
+
+systemctl restart rsyslog
+
+클라이언트에서
+
+logger -p local7.warning "Remote Syslog test"로
+로그 메시지 발생시켰을 때 로그서버의 /var/log/messages파일에 로그가 기록됨.
+
+http://loganalyzer.adiscon.com/
+
+download
+
+4.1.10 다운로드
+
+Syslog syslog admin 1234 mysql Syslog syslog 1234 finish logout login (admin 1234)
+
