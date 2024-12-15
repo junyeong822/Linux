@@ -1,0 +1,284 @@
+- 파일 서비스 : 
+  1) FTP(File Transfer Protocol)서비스 : 파일공유 서비스
+     => 서버에 있는 파일을 클라이언트가 다운로드하거나 클라이언트에서
+          서버로 파일을 업로드할 수 있음.
+
+  2) NFS(Network File System)서비스 : 유닉스/리눅스용 파일공유서비스
+     => 서버에서 공유하고 있는 디렉토리를 클라이언트에서 마운트하여 자신의 
+          파일시스템처럼 사용하는 서비스 
+
+  3) Samba서비스 : 윈도우의 공유서비스를 유닉스/리눅스에서 사용할 수 있도록 만든
+                         서비스.   
+                         서버(윈도우)-클라이언트(리눅스), 서버(리눅스)-클라이언트(윈도우) 형태로 사용할 수 있음.
+
+  4) SCP(Secure Copy) : SSH서비스를 이용하여 SSH서버와 클라이언트간에 파일을 송수신할 수 있도록 하는 서비스
+
+- FTP 서비스
+
+  su - 
+  dnf install vsftpd
+  systemctl start vsftpd
+  firewall-cmd --add-service=ftp
+  systemctl status vsftpd
+  netstat -ntlp
+  
+  => private FTP로 동작중인 상태.   
+       윈도우(클라이언트)에서 ftp 클라이언트를 이용하여 접속 후 아이디/패스워드 입력하여 로그인.
+
+  cmd>
+  ftp 서버IP주소 
+  아이디/패스워드
+  
+rpm -qa | grep vsftpd
+vsftpd-3.0.3-36.el8.x86_64
+
+rpm -qc vsftpd-3.0.3-36.el8.x86_64
+/etc/logrotate.d/vsftpd
+/etc/pam.d/vsftpd
+/etc/vsftpd/ftpusers
+/etc/vsftpd/user_list
+/etc/vsftpd/vsftpd.conf
+[root@rocky2 ~]# vi /etc/vsftpd/vsftpd.conf
+[root@rocky2 ~]# systemctl restart vsftpd
+[root@rocky2 ~]# vi /etc/vsftpd/vsftpd.conf
+
+vsFTP 서비스를 anonymous로 동작시키기 위한 설정 변경
+vi /etc/vsftpd/vsftpd.conf
+anonoymous_enable=YES로 변경
+local_enable=NO로 변경 
+:wq
+systemctl restart vsftpd
+
+ftp 서버IP주소
+anonoymous 입력 패스워드 없음
+
+탐색기에서 접속하면 인증없이 바로 접속됨
+
+FTP 서비스 모드 : Active 모드와 Passive 모드
+Active 모드 : 데이터 통신시 서버에서 클라이언트로 접속을 해야하기 때문에 
+클라이언트쪽에 방화벽에 의해서 차단될 가능성이 높음
+이 경우 세션연결 후 끊어지는 과정이 반복됨
+
+클라이언트	  서버
+ 임의 포트 -------> TCP21
+연결과정에서 클라이언트가 서버에게 알려줌
+
+TCP 10000 <- 임의포트
+클라이언트	  서버
+ TCP10000 <------- TCP20
+
+Passvie 모드 : Active 모드와 달리 데이터 통신시 클라이언트가 서버로 접속함
+접속할 포트는 세션연결과정에서 서버가 클라이언트에게 알려줌
+서버쪽 방화벽을  열어두어야함 
+Passvie 모드와 마찬가지로 임의포트가 사용되므로 방화벽에서 열어둘 포트를 지정할 필요가 있음
+
+클라이언트	  서버
+ 임의 포트 -------> TCP21
+연결과정에서 서버가 클라이언트에게 알려줌
+
+TCP 10000 <- 임의포트 지정가능
+클라이언트	   서버
+ 임의포트 -------> TCP10000
+
+Passive 모드에서 사용할 포트 지정
+vi /etc/vsftpd/vsftpd.conf
+passv_min_port=10001
+passv_max_port=10003
+:wq
+systemctl restart vsftpd
+
+- chroot (Chane root) : 어떤 서비스를 통해 서버에 접속했을 경우 접속한 위치를 /로 인신하도록 하는 것
+다른 디렉토리로 이동하는 것을 차단하여 보안을 강화시킴
+
+vi /etc/vsftpd/vsftpd.conf
+anony_mous_enable=NO
+local_enable=YES
+chroot_local_user=YES - 주석제거
+chroot_list_enable=YES - 주석제거
+chroot_list_file=/etc/vsftpd/chroot_list - 주석 제거
+allow_wreiteable_chroot=YES - 추가
+:wq
+systemctl restart vsftpd
+
+NFS 서비스
+유닉스/리눅스간 파일공유 서비스 현재는 윈도우에서도 NFS클라이언트를 제공함
+TCP 2049번을 사용하여 서비스함
+dnf install nfs-utils - nfs서비스용 패키지 설치
+참고 : ubuntu를 NFS클라이언트로 사용할 경우 nfs-common을 설치(apt install nfs-common)해야 nfs파일시스템을
+인식할 수 있음
+
+rpm -qc nfs-utils-2.3.3-59.el8.x86_64
+/etc/gssproxy/24-nfs-server.conf
+/etc/modprobe.d/lockd.conf
+/etc/nfs.conf
+/etc/nfsmount.conf
+/etc/request-key.d/id_resolver.conf
+/var/lib/nfs/etab
+/var/lib/nfs/rmtab
+
+vi /etc/exports : 공유할 디렉토리와 공유를 허용할 클라이언트(옵션)을 설정하는 파일
+/var/nfs_share	본인PC IP (rw)입력
+- /var/nfs_share 디렉토리를 IP 주소를 사용하는 클라이언트에게 공유함
+공유시 옵션은 rw(읽기 쓰기 가능)
+- exportfs : /etc/exportfs에서 설정한대로 공유하기위한 명령
+:wq
+
+systemctl start nfs-sever
+
+firewall-cmd --add-service=nfs : 시스템 리부팅시 설정이 제거됨
+firewall-cmd --permanent --add-service=nfs : 설정이 저장되므로 리부팅시에도 그대로 적용됨
+firewall-cmd --reload : reload를 해야 적용됨
+
+클라이언트에서는 nfs서버레서 공유하고 있는 디렉토리를 사용하기 위해서는 mount를 해야함
+mkdir /mnt/nfs-mp
+mount -t nfs 192.168.100.47:/var/nfs_share /mnt/nfs-mp
+
+mount후에 해당 디렉토리에  쓰기를 하려면 퍼미션이 있어야함
+nfs 마운트시 사용자/그룹은 기본값이 적용되면 nobody 혹시 nfsnobody가 됨
+따라서 쓰기를 하려면 other에게 쓰기권한을 부여해야함
+
+nfs 서버에서 공유하고 있는 디렉토리의 권한중에 other에게 쓰기권한 부여
+chmod o+w /var/nfs_share
+
+nfs 클라이언트에서 mount할 경우 root 권한으로 사용하게 하려면 다음 옵션을 설정함
+vi /etc/exports
+/var/nfs_share	192.168.100.47(rw,no_root_squash)
+exportfs
+exportfs -v : 공유내용 확인
+
+nfs 클라이언트에서 마운트한 상태를 지속하려면 /etc/fstab 등록해야함
+vi /etc/fstab
+192.168.100.47:/var/nfs_share	/mnt/nfs-mp	nfs	defaults	0 0
+- nfs용 옵션
+fg : 첫번째 NFS마운트 시도에서 타임아웃(연결안됨)이 발생되면 마운트 시도를 즉시 중단(기본값)
+hard : 타임아웃이 발생하면 'Server not responding' 메시지를 출력하고 무한정 재시도
+soft : 타임아웃이 발생하면 프로그램에 오류 보고하고 부팅 진행
+
+Samba 서비스
+윈도우와 리눅스/유닉스간에 파일 또는 장치 공유를 할 수  있는 서비스
+
+dnf install cifs-utils
+pwd(/mnt)
+mount -t cifs //192.168.3.22/SMB_share smb-mp -o username=smb-user_password=1234
+
+
+smbd = TCP445 : IP주소 또는 hostname을 이용한 서비스
+nmbd : 시스템 이름으로 접근할 수 있도록 하는 서비스 
+UDP 137,138 : 네트워크내에서 접속가능한 컴퓨터를 검색할 수 있는 서비스
+TCP139 : 컴퓨터 이름으로 접속하기 위한 서비스
+
+smbclient : dnf install samba-client
+dnf install cifs-utils - mount에 필요한 유틸리티
+smbclient -L //윈도우IP주소/공유이름 -U 사용자명
+smbclient -L //192.168.3.22/SMB_share -U smbuser 
+패스워드 입력
+
+smbclient를 이용해서 접속 후에는 ftp처럼 사용할 put, get 명령 사용
+- mount 하기
+mount -t cifs //192.168.3.22/SMB_share /mnt/smb-mp -o username=smbuser, password=1234
+
+윈도우 방화벽에서 TCP 139,445 UDP 137,138 개방
+IP 주소를 이용해서 접속하는 경우는 TCP 445번만 개방하면됨
+
+리눅스에서 samba서비스를 하고 윈도우에서 접속하기
+dnf install samba
+vi /etc/samba/smb.conf
+[global]
+	workgroup = WORKGROUP
+	hosts allow = 192.168.3.22 -> 접속할 클라이언트가 위한 네트워크
+
+smbpassword -a rocky2 -> rocky2사용자를 samba사용자로 등록
+패스워드 설정
+
+윈도우에서 탐색기 주소창에 \\리눅스IP주소\rocky2 입력하면 ID/PW창이 뜨고 rocky2와 설정한 패스워드
+입력하면 접속됨
+
+인증없는 공유디렉토리 설정
+smb.conf에 다음 내용 추가
+vi smb.conf
+[share]
+	path=/var/samba
+	public=YES
+	writeable=YES
+:wq
+systemctl restart smb nmb
+mkdir /var/samba
+
+윈도우에서 탐색기 접속
+\\리눅스서버IP주소\share
+
+Web 서비스
+HTTP 프로토콜을 이용한 클라이언트 프로그램과 서버 프로그램간의 통신
+서버에서는 클라이언트가 요청하는 html, htm 파일을 전송한다
+수신한 클라이언트는 웹브라우저에 해당 파일의 태그를 읽어서 표시함
+
+HTTP는 TCP 80포트를 사용함 변경 가능
+대표적인 웹서버 프로그램으로는 apache, nginx, ils(윈도우) 등이 있음
+URI : 인터넷상의 리소스를 표현하기 위한 주소 URL과 URN을 통칭함
+URL : http://192.168.100.47/profile -> 인터넷상에서 리소스의 위치를 프로토콜과 함께 표현한 주소
+URN : http://192.168.100.47/board/food/1 -> 인터넷상의 리소스를 가리키는 상대적인 이름으로 표현한 주소
+
+cd /var/www/html
+echo "<h1>Apache Web Server</h1>" index.html
+echo "<h1> Nginx Web Server </h1>" index.html
+
+<웹서버 ssl/tls 동작>
+cd lab
+0. 필요한 패키지 설치
+dnf install httpd
+dnf install openssl
+dnf install mod_ssl   => Apache에서 사용할 SSL 모듈 설치
+
+1. 키 생성
+#openssl genrsa -des3 -out bjy.com.key 2048  => 키크기 2048비트의 공개키와 개인키 생성. passphrase로 키 보호
+
+2.CSR(Certificate Signing Request) 생성
+=> 인증서에 사인을 요청하는 CSR 생성하여 CA에 전송
+#openssl req -new -key gdn14.com.key -out bjy.com.csr
+
+3.Self Signed Certificate 생성 
+=> 외부의 공인 Certificate Authority를 이용하지 않고 내부의 서버를 이용하여 인증서를 발급하고자 하는 경우
+openssl req -new -x509 -nodes -sha1 -days 365 -key bjy.com.key -out bjy.com.crt
+mv bjy.com.key bjy.com.crt /etc/httpd/conf.d
+
+4./etc/httpd/conf.d/ssl.conf 파일에 서버 설정과 인증서,개인키 파일 지정
+cd /etc/httpd/conf.d
+vi ssl.conf
+85 SSLCertificateFile /etc/http/conf.d/bjy.com.crt
+93 SSLCertificateKeyFile /etc/http/conf.d/bjy.com.key
+:wq
+systemctl restart httpd
+
+- SELinux 활성여부 확인
+getenforce
+Enforcing
+setenforce 0
+
+vi /etc/sysconfig/selinux
+selinux=Enforcing => disabled 
+
+nslookup www.naver.com - naver의 IP주소 확인
+
+DNS 서비스
+Domain Name : 조직(국가,기업,학교,단체 등)을 구분하기 위한 이름 주소
+ex) naver.com	daum.net		google.co.kr
+Hostname : 같은 도메인 내에 있는 시스템을 구분하기 위한이름 
+ex) www.naver.com	
+     ftp.naver.com
+     mail.naver.com
+
+동일한 호스트명은 도메인마다 존재할 수 있음
+호스트를 인터넷상에서 식별하기 위해서 도메인명까지 사용해서 구분해야함
+호스트명 + 도메인명 = FQDN(Fully Qualified Domain Name)
+
+cd /etc
+/etc/hosts : IP주소와 이름주소를 매핑할 수 있는 파일 DNS서비스를 사용하기전에 이름 서비스로 사용하던 파일
+현재도 DNS서비스를 이용하기 전에 hosts 파일을 먼저 검색함
+윈도우에도 사용되는 파일임 (C:\Windows\System32\drivers\etc\hosts)
+cat hosts
+vi hosts
+192.168.100.47          rocky2  rocky2.example.com
+192.168.100.220        rocky1  rocky1.example.com
+192.168.3.22             win     win.example.com
+:wq
+ping rocky1, rocky2, win, rocky2.example.com, rocky1.example.com, win.example.com
