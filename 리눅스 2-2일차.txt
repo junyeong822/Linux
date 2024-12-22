@@ -170,7 +170,7 @@ zone "koreait.com" IN {
 };
 저장
 
-cp /var/named/kyt.zone /var/named/koreait.zone
+cp /var/named/bjy.zone /var/named/koreait.zone
 
 [root@rocky2 mail]# cat /var/named/koreait.zone
 $TTL 86400
@@ -182,6 +182,7 @@ $TTL 86400
                                 1W
                                 1D )
         IN NS ns
+	IN MX 10 mail
 
 ns              IN A 172.31.0.20
 
