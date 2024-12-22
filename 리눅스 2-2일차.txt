@@ -316,3 +316,8 @@ YWRtaW4=    => admin
 cXdlcjEyMzQ=  => qwer1234
 Ctrl + ]
 telnet> close
+
+Mozila thunderbird
+admin@koreait.com
+rocky2@bjy.com
+user1@koreait.com
