@@ -1,0 +1,317 @@
+Domain Name : 기업, 단체, 학교 등 조직을 구분하기 위한 이름 
+naver.com, google.com, daum.net snu.ac.kr 등
+
+Host Name : 각 도메인에서 동작중인 시스템 (서버)를 구분하기 위한 이름
+www, ftp, mail 등
+
+FQDN (Fully Qualified Domain Name) : Host Name + Domain Name
+www.naver.com ->	     11.11.11.11
+mail.google.com ->    12.12.12.12
+ftp.daum.net  ->        13.13.13.13
+
+/etc/hosts : IP주소와 이름주소가 매핑되어있는 파일 DNS서비스가 사용되기 전부터 사용하던 파일
+현재도 DNS 질의전에 이 파일을 검색한 후 등록된 내용이 없으면 DNS질의를 하게됨
+
+윈도우도 hosts파일이 있고 같은 기능을 수행함
+c:\windows\system32\drivers\etc\hosts
+
+rocky2
+리눅스/유닉스용 DNS서버프로그램 : bind
+dnf install bind
+dnf install bind-chroot -> /var/named/chroot 디렉토리를 '/'디렉토리로 인식함
+                                bind와 bind-chroot 두 패키지가 같이 설치됨
+
+systemctl start named : /var/named = named의 root 디렉토리
+                             /etc : 설정파일위치, named.conf, named.rfc1912.zones
+systemctl start named-chroot : /var/named/chroot : named의 root 디렉토리
+                                       /var/named/etc : 설정파일위치, named.conf, named.rfc1912.zones
+netstat -ntlp | grep :53 = named 서비스가 작동중인지 확인
+firewall-cmd --permanent --add-service=dns
+firewall-cmd --reload
+firewall-cmd --list-service
+[root@admin2 named]# cockpit dhcpv6-client dns http ssh syslog
+
+cd /var/named
+vi /etc/named.conf
+listen-on port 53 { 192.168.100.47; }; -> DNS 서비스를 할 서버주소로 변경
+allow-query     { any; };	           -> 모든 클라이언트에게 질의를 허용하려면 any
+				               동일한 네트워크 상의 클라이언트에게만 질의를 허용하려면
+				               localnets 옵션 사용
+recursion yes; -> recursion 옵션이 yes이면 해당 DNS서버가 가지고 있지 않은 zone정보는 '.'root dns서버에게 질의
+                      응답받은 IP주소를 클라이언트에게 전달함 
+                      이렇게 자신이 가지고 있지 않은 정보를 클라이언트에게 주는 경우를 
+                      권한없는 응답(non authoritative response)이라고함
+                      옵션을 no로 설정하면 외부로 질의하지 않음
+zone "." IN {
+        type hint; 		-> hint(root dns서버)
+                                        master(일반적인 dns서버, 1대의 dns서버 구성시)
+                                        slave(master dns서버와 동기화)
+        file "named.ca";	-> root dns 서버의 IP주소가 등록돼있는 파일
+};
+:wq
+
+include "/etc/named.rfc1912.zones"; -> '.' 도메인이외의 일반 도메인 정보(zone 정보)를 가지고 있는 파일
+                                                 각 zone설정이 포함되고 해당 zone정보를 가지고있는 
+                                                 파일(zone 파일)을 가리키고 있음
+
+vi /var/named/named.rfc1912.zones
+zone "bjy.com" IN {
+        type master;
+        file "bjy.zone";
+};
+
+zone "nate.com" IN {
+        type master;
+        file "nate.zone";
+};
+:wq
+
+- DNS서버에 도메인을 추가하는 순서
+1. named.rfc1912.zones 파일에 zone 생성
+2. zone 설정에 지정한 zone 파일을 /var/named에 생성
+
+vi /var/named/bjy.zone
+$TTL 86400  -> 해당 존 정보를 수신한 후에 해당 정보가 유효한 시간 (1일)
+
+@    IN SOA    ns       admin ( -> @ 도메인(bjy.com), IN(지시자), 
+                                            SOA(권한의 시작을 의미), ns(name서버의 호스트명, ns.bjy.com.)
+                                            admin(관리자 메일주소, admin.bjy.com)
+                    20241222        -> 일련번호, Slave 서버에서 자신의 일련번호와 비교해 크면 동기화
+                    1H                 -> Refresh 시간, Slave 서버가 Master서버에게 업데이트 정보 요청하는 시간 
+                    3H                 -> Retry 시간, Slave 서버에서 Master서버와 통신불가로 정보를 못받은 경우 재시도 시간
+                    1W                 -> Expire 시간, 갱신이 안된 경우 해당 정보를 유지하는 시간
+                    1D )                -> Minimum 시간, $TTL값과 같은 의미, 캐시하는 시간
+      IN NS ns                        -> IN 지시자 다음에는 Resource Record(RP)가 옴 NS, MX, A, AAAA, CHAME, TXT 등
+                                             NS는 Name Server 나타냄, CNAME은 공식이름
+                                             PTR은 이름주소(역방향 질의 : IP주소 -> 이름주소)
+
+ns   IN A 192.168.100.47          -> A는 호스트의 IPv4주소, AAAA는 호스트의 IPv6주소
+www IN A 192.168.100.47         
+ftp  IN A 192.168.100.220
+
+www IN CNAME www.a.b.bjy.com
+67  IN PTR www.a.b.bjy.com
+:wq
+
+vi /var/named/nate.zone
+$TTL 86400
+
+@    IN SOA    ns       admin (
+                    20241222
+                    1H
+                    3H
+                    1W
+                    1D )
+     IN NS ns
+
+ns  IN A 192.168.100.47
+ftp IN A 192.168.100.220
+www IN CNAME www.a.b.bjy.com.
+
+systemctl restart named
+
+rocky1
+vi /etc/named.rfc1912.zones
+zone "bjy.com" IN {
+              type master;
+              file "bjy.zone";
+              allow-transfer { 192.168.100.47; };
+      };
+     
+      zone "nate.com" IN {
+              type master;
+              file "nate.zone";
+              allow-tranfer { 192.168.100.47; };
+      };
+:wq
+
+vi /etc/named.conf
+zone "bjy.com" IN {
+        type slave;
+        masters { 192.168.100.47; };
+        file "slaves/bjy.zone";
+};
+
+zone "nate.com" IN {
+        type slave;
+        masters { 192.168.100.47; };
+        file "slaves/nate.zone";
+};
+:wq
+
+rocky1 : core, DNS서버(Slave) 172.31.0.10
+rocky2 : core, DNS서버(Master) 172.31.0.20
+ubuntu 22.04.05 172.31.0.30
+
+파일 - 도구(네트워크 관리자) - NAT네트워크 - linuxnetwork,172.31.0.0/24
+포트포워딩
+- rocky1 : TCP, 호스트포트:22, 게스트IP:172.31.0.10, 게스트포트:22
+- rocky2 : TCP, 호스트포트:222, 게스트IP:172.31.0.20, 게스트포트:22
+- ubnutu : TCP, 호스트포트:2222, 게스트IP:172.31.0.30 게스트포트:22
+
+rocky1의 IP주소를 고정IP주소로 설정
+nmcli con modify enp0s3 ipv4.address 172.31.0.10/24 ipv4.dns 1.1.1.1 ipv4.gateway 172.31.0.1 ipv4.method manual
+nmcli con up enp0s3
+
+DNS서비스 :  koreait.com zone 추가하여,  kyt(이니셜).com과 함께 2개 zone 서비스
+ 
+rocky2 :
+vi /etc/named.rfc1912.zones
+zone "kyt.com" IN {
+      type master;
+      file "kyt.zone";
+      allow-transfer { 172.31.0.10; };
+};
+
+zone "koreait.com" IN {
+      type master;
+      file "koreait.zone";
+      allow-transfer { 172.31.0.10; };
+};
+저장
+
+cp /var/named/kyt.zone /var/named/koreait.zone
+
+[root@rocky2 mail]# cat /var/named/koreait.zone
+$TTL 86400
+
+@       IN SOA  ns              admin (
+                                20241222
+                                1H
+                                3H
+                                1W
+                                1D )
+        IN NS ns
+
+ns              IN A 172.31.0.20
+
+mail   	 IN A 172.31.0.10
+www        IN A 172.31.0.10
+ftp     	IN A 172.31.0.10
+
+[root@rocky2 mail]# cat /var/named/kyt.zone
+$TTL 86400
+
+@       IN SOA  ns              admin (
+                                20241222
+                                1H
+                                3H
+                                1W
+                                1D )
+        IN NS ns
+        IN MX 10 mail
+
+ns              IN A 172.31.0.20
+mail    IN A 172.31.0.20
+www             IN A 172.31.0.20
+ftp     IN A 172.31.0.20
+
+nmcli connection modify enp0s3 ipv4.dns 172.31.0.20
+nmcli con up enp0s3
+systemctl restart named
+systemctl enable named
+nslookup mail.kyt.com  => 172.31.0.20
+nslookup mail.koreait.com => 172.31.0.10
+
+- rocky1의 DNS서버 IP주소를 rocky1으로 지정함
+nmcli connection modify enp0s3 ipv4.dns 172.31.0.20
+nmcli con up enp0s3
+
+dnf install bind-utils => 최소설치한 경우 추가 설치 필요
+
+nslookup mail.kyt.com  => 172.31.0.20
+nslookup mail.koreait.com => 172.31.0.10
+
+<postfix, dovecot 설치>
+rpm -qa | grep postfix
+rpm -qa | grep dovecot
+설치확인 후 없으면 설치
+
+yum install postfix dovecot
+
+<postfix 기본설정>
+
+/etc/postfix/main.cf  => 주 설정파일
+
+1) 메일 서버 호스트 설정
+# postconf -e 'myhostname = mail.koreait.com'
+
+2) 메일 도메인 설정
+# postconf -e 'mydomain = koreait.com'
+
+3) 발송자 도메인 설정
+# postconf -e 'myorigin = $mydomain'
+
+4) 리스닝 인터페이스 설정
+# postconf -e 'inet_interfaces = all'
+
+5) ipv4만 사용하도록 설정
+# postconf -e 'inet_protocols = ipv4'
+
+6) 메일을 받을 도메인 설정
+# postconf -e 'mydestination = $mydomain,localhost.$mydomain,localhost,$mydomain,/etc/postfix/local-host-names'
+# touch /etc/postfix/local-host-names
+
+7) SMTP 인증을 위한 설정
+postconf -e 'smtpd_sasl_type = dovecot'
+postconf -e 'smtpd_sasl_path = private/auth'
+postconf -e 'smtpd_sasl_auth_enable = yes'
+postconf -e 'smtpd_sasl_security_options = noanonymous'
+postconf -e 'smtpd_sasl_local_domain = $myhostname'
+postconf -e 'smtpd_client_restrictions = permit_mynetworks,permit'
+postconf -e 'smtpd_recipient_restrictions = permit_mynetworks,permit_auth_destination,permit_sasl_authenticated,reject'
+
+8) Dovecot 설정 => 설치 yum install dovecot
+vi /etc/dovecot/dovecot.conf
+
+-프로토콜 설정
+#protocols = imap pop3 lmtp   =>  protocols = imap pop3
+
+-리스닝 인터페이스 설정
+#listen = *, ::  => listen = *
+
+-비밀번호 인증 설정
+vi /etc/dovecot/conf.d/10-auth.conf
+#disable_plaintext_auth = yes => disable_plaintext_auth = no
+
+auth_mechanisms = plain => auth_mechanisms = plain login
+
+-메일박스 위치 변경
+vi /etc/dovecot/conf.d/10-mail.conf
+#mail_location  => mail_location = mbox:/var/empty:INBOX=/var/spool/mail/%u:INDEX=MEMORY
+
+-SMTP 인증 설정
+vi /etc/dovecot/conf.d/10-master.conf
+
+# Postfix smtp-auth
+unix_listener /var/spool/postfix/private/auth {
+ mode = 0666
+ user = postfix
+ group = postfix
+}
+
+vi /etc/dovecot/conf.d/10-ssl.conf
+
+ssl = no
+
+9) 메일서버 시작 
+# systemctl restart postfix dovecot
+
+10) 방화벽 개방
+TCP/25(SMTP), TCP/110(POP3), TCP/143(IMAP)
+
+telnet localhost 110
+user admin
+pass qwer1234
+Ctrl + ]
+telnet> close
+
+telnet localhost 25
+ehlo koreait.com
+auth login
+334 VXNlcm5hbWU6
+YWRtaW4=    => admin
+334 UGFzc3dvcmQ6
+cXdlcjEyMzQ=  => qwer1234
+Ctrl + ]
+telnet> close
