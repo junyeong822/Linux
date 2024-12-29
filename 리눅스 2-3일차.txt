@@ -1,0 +1,350 @@
+yum install postfix dovecot
+
+<postfix 기본설정>
+
+/etc/postfix/main.cf  => 주 설정파일
+
+1) 메일 서버 호스트 설정
+# postconf -e 'myhostname = mail.koreait.com'
+
+2) 메일 도메인 설정
+# postconf -e 'mydomain = koreait.com'
+
+3) 발송자 도메인 설정
+# postconf -e 'myorigin = $mydomain'
+
+4) 리스닝 인터페이스 설정
+# postconf -e 'inet_interfaces = all'
+
+5) ipv4만 사용하도록 설정
+# postconf -e 'inet_protocols = ipv4'
+
+6) 메일을 받을 도메인 설정
+# postconf -e 'mydestination = $mydomain,localhost.$mydomain,localhost,$mydomain,/etc/postfix/local-host-names'
+# touch /etc/postfix/local-host-names
+
+7) SMTP 인증을 위한 설정
+postconf -e 'smtpd_sasl_type = dovecot'
+postconf -e 'smtpd_sasl_path = private/auth'
+postconf -e 'smtpd_sasl_auth_enable = yes'
+postconf -e 'smtpd_sasl_security_options = noanonymous'
+postconf -e 'smtpd_sasl_local_domain = $myhostname'
+postconf -e 'smtpd_client_restrictions = permit_mynetworks,permit'
+postconf -e 'smtpd_recipient_restrictions = permit_mynetworks,permit_auth_destination,permit_sasl_authenticated,reject'
+
+8) Dovecot 설정 => 설치 yum install dovecot
+vi /etc/dovecot/dovecot.conf
+
+-프로토콜 설정
+#protocols = imap pop3 lmtp   =>  protocols = imap pop3
+
+-리스닝 인터페이스 설정
+#listen = *, ::  => listen = *
+
+-비밀번호 인증 설정
+vi /etc/dovecot/conf.d/10-auth.conf
+#disable_plaintext_auth = yes => disable_plaintext_auth = no
+
+auth_mechanisms = plain => auth_mechanisms = plain login
+
+-메일박스 위치 변경
+vi /etc/dovecot/conf.d/10-mail.conf
+#mail_location  => mail_location = mbox:/var/empty:INBOX=/var/spool/mail/%u:INDEX=MEMORY
+
+-SMTP 인증 설정
+vi /etc/dovecot/conf.d/10-master.conf
+
+# Postfix smtp-auth
+unix_listener /var/spool/postfix/private/auth {
+ mode = 0666
+ user = postfix
+ group = postfix
+}
+
+vi /etc/dovecot/conf.d/10-ssl.conf
+
+ssl = no
+
+9) 메일서버 시작 
+# systemctl restart postfix dovecot
+
+10) 방화벽 개방
+TCP/25(SMTP), TCP/110(POP3), TCP/143(IMAP)
+
+telnet localhost 110
+user admin
+pass qwer1234
+Ctrl + ]
+telnet> close
+
+telnet localhost 25
+ehlo koreait.com
+auth login
+334 VXNlcm5hbWU6
+YWRtaW4=    => admin
+334 UGFzc3dvcmQ6
+cXdlcjEyMzQ=  => qwer1234
+Ctrl + ]
+telnet> close
+-----------------------------------------------------------------------------------------------------------------------------
+- 웹메일 프로그램 : 웹브라우저를 통해 웹 메일 프로그램에 접속한 후 메일서버의 내용을 확인하거나 전송할 수 있는
+                    프로그램.(roundcube, squirrelmail 등-오픈소스 웹메일 프로그램)
+
+=======================================================================
+roundcube 설치(웹서버, 메일서버 설치)
+=======================================================================
+dnf install httpd -> 아파치 웹서버 설치
+dnf install mariadb-server -> mariadb 설치
+-roundcube에서 사용할 데이터베이스 생성
+mysql -uroot -p
+
+CREATE DATABASE roundcubemail CHARACTER SET utf8 COLLATE utf8_general_ci;
+create user admin@localhost identified by '1234';
+GRANT ALL PRIVILEGES ON roundcubemail.* TO admin@localhost;
+show database;
+use mysql;
+show tables;
+desc user;
+select host, user, password from user;
+exit
+
+
+- roundcube가 동작하기 위해 필요한 패키지 설치
+dnf install php
+ sudo dnf module list php
+sudo dnf module enable php:8.0
+sudo dnf install php-{pear,cgi,common,curl,gmp,fpm,mbstring,gd,mysqli,gettext,bcmath,json,xml,fpm,intl,zip} -y
+php --version
+
+systemctl restart httpd
+
+firewall-cmd --permanent --add-service=http
+firewall-cmd --reload
+
+roundcube 소스파일 다운로드  
+https://roundcube.net
+
+소스 다운로드 후에 /var/www/html 디렉토리에 압축 및 Tar 해제
+tar xfz roundcubemail-1.6.9 -C /var/www/html
+mv roundcubemail-1.6.9/ rc
+
+디렉토리 이름을 rc로 변경.
+
+설치과정 중에 추가 설정사항: mail서버에서 설정>
+vi /etc/php.ini
+904 date.timezone = Asia/Seoul
+저장 후
+systemctl restart httpd
+
+cd /var/www/html/rc
+chown apache.apache temp logs
+
+우분투에서>
+
+http://mail.koreait.com/rc/installer
+koreait  admin  1234  25
+
+vi config.inc.php
+----------------------------------------------------------------------------------------------
+
+<웹서버 ssl/tls 동작>
+
+1. 키 생성
+#openssl genrsa -des3 -out koreait.com.key 2048  => 키크기 2048비트의 공개키와 개인키 생성. passphrase로 키 보호
+
+2.CSR(Certificate Signing Request) 생성
+=> 인증서에 사인을 요청하는 CSR 생성하여 CA에 전송
+#openssl req -new -key koreait.com.key -out koreait.com.csr
+
+3.Self Signed Certificate 생성 
+=> 외부의 공인 CA를 이용하지 않고 내부의 서버를 이용하여 인증서를 발급하고자 하는 경우
+openssl req -new -x509 -nodes -sha1 -days 365 -key koreait.com.key -out koreait.com.crt
+
+4./etc/httpd/conf.d/ssl.conf 파일에 서버 설정과 인증서,개인키 파일 지정
+
+dnf install httpd
+dnf install openssl
+dnf install mod_ssl   => Apache에서 사용할 SSL 모듈 설치
+
+
+tls && ip.dst==192.168.101.XXX
+
+log2.gdn6.com = 192.168.101.XXX
+
+
+getenforce
+Enforcing
+
+setenforce 0
+
+vi /etc/sysconfig/selinux
+
+selinux=Enforcing => disabled
+
+---------------------------------------------------------------------------------------
+
+DHCP (Dynamic Host Configuration Protocol) 서비스
+- 클라이언트에게 IP관련 파라미터(IP주소, 서브넷마스크, 게이트웨이주소, 도메인명, DNS서버주소 등)를 
+  자동으로 할당하는 서비스
+- 사용자가 클라이언트 단말에 IP주소를 직접 입력할 경우 중복이 발생할 가능성이 있으므로 
+  자동 할당을 통해 중복이 발생하지 않도록 함
+
+- 서버 (UDP 67), 클라이언트 (UDP 68)간에 메시지를 주고 받아서 동작함
+  클라이언트 (UDP 68)		서버 (UDP 67)
+                            <DORA 과정>
+                           ---------------->
+  		   DHCP DISCOVER
+                           <---------------
+                            DHCP OFFER
+                           ---------------->
+                            DHCP REQUEST
+                           <----------------
+                            DHCP ACK
+
+- 클라이언트와 서버간에 메시지는 기본적으로 브로드캐스트 통신을 사용하며 클라이언트 설정에 따라 유니캐스트 통신도 함
+- 같은 네크워크에 2대 이상의 DHCP 서버가 존재한다면 클라이언트의 요청에 의해 먼저 응답을 주는 서버의 정보를 사용함
+- 일반적으로 한번 할당된 주소는 임대기간이 1주일 (설정에 의해 변경 가능)
+- 1주일의 절반이 지나는 시점에서 재임대요청을 함 이때 자신이 사용하던 IP주소로 요청을 함 
+  (유동IP주소 환경이어도 IP주소가 잘 바뀌지 않는 이유)
+
+- Rockylinux에 DHCP 서버 프로그램 설치
+dnf install dhcp-server
+cd /etc/dhcp
+rm dhcp.conf
+cp /usr/share/doc/dhcp-server/dhcpd.conf.example ./dhcp.conf
+
+vi /etc/dhcp/dhcp.conf 
+subnet 172.31.0.0 netmask 255.255.255.0 {         => 서버가 포함된 네트워크
+  range 172.31.0.101 172.31.0.150;                    => 할당할 IP주소 범위
+  option domain-name-servers ns.koreait.com;   => Name Server 주소
+  option domain-name "koreait.com";               => Domain Name
+  option routers 172.31.0.1;                             => Gateway  IP주소(외부와 통신을 위해 반드시 필요)
+  option broadcast-address 172.31.0.255;          => 브로드캐스트 주소
+  default-lease-time 600;                                 => 기본 임대 기간
+  max-lease-time 7200;                                   => 최대 임대 기간  
+}
+
+host ubuntu {
+    haraware ethernet 08:00:27:27:41:0B;
+    fixed-address 172.16.31.6;
+}
+:wq
+
+systemctl start dhcpd
+netstat -ntlp
+------------------------------------------------------------------------------------------------------------
+
+1. 기존 NIC 삭제
+   nmcli con del 장치명 또는 UUID
+   nmcli con del enp0s3
+   nmcli con del enp0s8
+
+2. NIC 2개와 bond장치를  nmcli 명령으로 시스템에서 인식할 수 있도록 추가
+nmcli  connection  add  type  bond  con-name  bond0   ifname  bond0  mode 1  
+nmcli  connection  add  type  bond-slave   ifname enp0s3   master  bond0
+nmcli  connection  add  type  bond-slave   ifname enp0s8   master  bond0
+
+3. NIC 설정파일 내용 수정
+#cd /etc/sysconfig/network-scripts
+ifcfg-bond-slave-enp0s3  ifcfg-bond-slave-enp0s8  ifcfg-bond0
+
+# vi ifcfg-bond0
+
+BONDING_OPTS="mode=active-backup fail_over_mac=1" 
+TYPE=Bond
+BONDING_MASTER=yes
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=static
+IPADDR=172.31.0.10
+NETMASK=255.255.255.0
+GATEWAY=172.31.0.1
+DNS=172.31.0.10
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=default
+NAME=bond0
+UUID=0dea3893-4017-4a46-b2d3-15b523b36b91
+DEVICE=bond0
+ONBOOT=yes
+
+ifcfg-bond-slave-enp0s3와 ifcfg-bond-slave-enp0s8는 변경사항없음.
+
+TYPE=Ethernet
+BOND_PORT_QUEUE_ID=0
+NAME=bond-slave-enp0s3
+UUID=fbe4bdd2-5785-4013-8ef6-4fe677b82d8a
+DEVICE=enp0s3
+ONBOOT=yes
+MASTER=bond0
+SLAVE=yes
+ifcfg-ens34
+
+4. reboot
+5. cat /proc/net/bonding/bond0
+
+Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)
+
+Bonding Mode: fault-tolerance (active-backup) (fail_over_mac active)
+Primary Slave: None
+Currently Active Slave: enp0s3
+MII Status: up
+MII Polling Interval (ms): 100
+Up Delay (ms): 0
+Down Delay (ms): 0
+Peer Notification Delay (ms): 0
+
+Slave Interface: enp0s3
+MII Status: up
+Speed: 1000 Mbps
+Duplex: full
+Link Failure Count: 1
+Permanent HW addr: 08:00:27:47:1d:56
+Slave queue ID: 0
+
+Slave Interface: enp0s8
+MII Status: up
+Speed: 1000 Mbps
+Duplex: full
+Link Failure Count: 1
+Permanent HW addr: 08:00:27:f8:1c:de
+Slave queue ID: 0
+
+6. 테스트 
+
+ping 1.1.1.1  실행 후 
+ifconfig enp0s3 down  입력시 정상적으로 통신되는지 확인
+--------------------------------------------------------------------------------------------------------
+Squid Proxy 서버
+dnf install squid
+
+vi /etc/squid/squid.conf
+acl rocky src 172.31.0.0/24
+http_access allow manager
+:wq
+
+systemctl restart squid
+
+Reverse Proxy Server : LoadBalancer
+- 외부에서 들어오는 웹 요청을 reverse proxy server가 수신하고 내부에 있는 서버팜에 전달한다
+  즉, 여러서버에 분산 요청이 가능함
+- 웹서버 프로그램인 nginx를 reverse proxy server로 동작시킬 수 있음
+
+dnf install nginx
+cd /etc/nginx
+vi nginx.conf
+upstream myserver {
+    server 172.31.0.30:80;
+    server 172.31.0.40:80;
+}
+
+location / {
+    proxy_pass http://myserver;
+}
+:wq
+
+systemctl restart nginx
